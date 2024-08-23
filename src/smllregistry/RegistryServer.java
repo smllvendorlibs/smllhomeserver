@@ -130,6 +130,15 @@ public class RegistryServer {
 
 		Map<String, String> params = response.params();
 		String term = params.get("term");
+
+		if (term == null)  { // We did not find the pkg
+			Map obj = new HashMap();
+			obj.put("status", "err"); 
+			response.sendResponse(map2Json(obj));
+			return;
+		}
+
+		
 		ResultSet rs = null;
 		try {
 			String sql = String.format(
