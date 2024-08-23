@@ -5,15 +5,13 @@ import blazing.BlazingResponse;
 import blazing.Get;
 import blazing.Initializer;
 import blazing.Post;
+import blazing.Route;
 import blazing.Static;
 import blazing.WebServer;
 import components.HomeView;
-import components.NavigationBar;
 import components.PackageGroup;
 import components.ResultsHeader;
-import components.SearchSpace;
 import java.util.Map;
-import webx.Button;
 import webx.Div;
 import webx.Html;
 import webx.Main;
@@ -24,9 +22,6 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import webx.H1;
-import webx.I;
-import webx.P;
 
 @WebServer("8080")
 @Static("/styles")
@@ -47,12 +42,13 @@ public class RegistryServer {
 		}
 	}
 
-	@Get
+	@Route
 	public static void home(BlazingResponse response) {
 		WebXElement page = new Html()
 			.addHeaderScript("https://cdn.tailwindcss.com")
 			.addHeaderStyleLink("https://unpkg.com/nes.css@latest/css/nes.min.css")
 			.addHeaderStyleLink("/styles/main.css")
+			.title("SMLL | Packages")
 			.addChildren(
 				new Main()
 					.addChildren(new HomeView())
@@ -127,7 +123,7 @@ public class RegistryServer {
 		);
 	}
 
-	@Get("/v1/public/pkgman/pkginfo")
+	@Post("/v1/public/pkgman/pkginfo")
 	public static void packageInfo(BlazingResponse response) {
 
 		Map<String, String> params = response.params();
@@ -180,10 +176,9 @@ public class RegistryServer {
 			} catch (SQLException ex) {
 				BlazingLog.severe(ex.getMessage());
 			}
-		}
-		else {
-			String json = 
-				"""
+		} else {
+			String json
+				= """
 	{
     "status": "err"
 	}
