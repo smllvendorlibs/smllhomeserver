@@ -22,6 +22,9 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashMap;
+import java.util.Iterator;
+import org.json.simple.JSONValue;
 
 @WebServer("8080")
 @Static("/styles")
@@ -161,29 +164,40 @@ public class RegistryServer {
 				String url = rs.getString("repourl");
 				String description = rs.getString("description");
 
-				String json
-					= """
-  {
-		"pkgname"  : "%s", 
-  	"pkgauthor" : "%s", 
-  	"pkgurl" : "%s", 
-  	"pkgdesc" : "%s",
-    "status": "ok"
-  }
-    """;
+				Map obj = new HashMap();
+				obj.put("pkgname", name);
+				obj.put("pkgauthor", author);
+				obj.put("pkgurl", url);
+				obj.put("pkgdesc", description); 
+				obj.put("status", "ok"); 
 
-				response.sendResponse(String.format(json, name, author, url, description));
-			} catch (SQLException ex) {
+				response.sendResponse(map2Json(obj));
+
+			} catch (Exception ex) {
+				System.out.println("YYY");
 				BlazingLog.severe(ex.getMessage());
 			}
 		} else {
-			String json
-				= """
-	{
-    "status": "err"
-	}
-        """.trim();
-			response.sendResponse(json);
+				Map obj = new HashMap();
+				obj.put("status", "ok"); 
+				response.sendResponse(map2Json(obj));
 		}
+	}
+
+	private static String map2Json(Map<String, String> map) {
+		var entries = map.entrySet();
+
+		StringBuilder sb = new StringBuilder(); 
+		sb.append("{".indent(0));
+		for (var it = entries.iterator(); it.hasNext();) {
+			var entry = it.next();
+			sb.append(
+				String.format("\"%s\":\"%s\"", entry.getKey(), entry.getValue())
+					.concat(it.hasNext() ? "," : "").indent(2)
+			);
+
+		}
+		sb.append("}");
+		return sb.toString(); 
 	}
 }
