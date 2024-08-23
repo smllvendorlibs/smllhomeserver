@@ -24,7 +24,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Iterator;
-import org.json.simple.JSONValue;
 
 @WebServer("8080")
 @Static("/styles")
@@ -137,9 +136,7 @@ public class RegistryServer {
 				"""
     SELECT * FROM Packages 
   	where 
-  		package_name like '%%%s%%' 
-  		or description like '%%%s%%'
-  		or repourl like '%%%s%%';
+  		lower(package_name) = lower('%s');
     """.trim(),
 				term,
 				term,
@@ -164,6 +161,13 @@ public class RegistryServer {
 				String url = rs.getString("repourl");
 				String description = rs.getString("description");
 
+				if (name == null)  { // We did not find the pkg
+					Map obj = new HashMap();
+					obj.put("status", "err"); 
+					response.sendResponse(map2Json(obj));
+					return;
+				}
+
 				Map obj = new HashMap();
 				obj.put("pkgname", name);
 				obj.put("pkgauthor", author);
@@ -173,13 +177,12 @@ public class RegistryServer {
 
 				response.sendResponse(map2Json(obj));
 
-			} catch (Exception ex) {
-				System.out.println("YYY");
+			} catch (SQLException ex) {
 				BlazingLog.severe(ex.getMessage());
 			}
 		} else {
 				Map obj = new HashMap();
-				obj.put("status", "ok"); 
+				obj.put("status", "err"); 
 				response.sendResponse(map2Json(obj));
 		}
 	}
