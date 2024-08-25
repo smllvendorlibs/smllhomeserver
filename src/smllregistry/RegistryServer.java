@@ -131,14 +131,13 @@ public class RegistryServer {
 		Map<String, String> params = response.params();
 		String term = params.get("term");
 
-		if (term == null)  { // We did not find the pkg
+		if (term == null) { // We did not find the pkg
 			Map obj = new HashMap();
-			obj.put("status", "err"); 
+			obj.put("status", "err");
 			response.sendResponse(map2Json(obj));
 			return;
 		}
 
-		
 		ResultSet rs = null;
 		try {
 			String sql = String.format(
@@ -147,8 +146,6 @@ public class RegistryServer {
   	where 
   		lower(package_name) = lower('%s');
     """.trim(),
-				term,
-				term,
 				term
 			);
 			Statement stmt = conn.createStatement();
@@ -163,6 +160,12 @@ public class RegistryServer {
 			return;
 		}
 
+		Map obj = new HashMap();
+		obj.put("pkgname", null);
+		obj.put("pkgauthor", null);
+		obj.put("pkgurl", null);
+		obj.put("pkgdesc", null);
+
 		if (rs != null) {
 			try {
 				String name = rs.getString("package_name");
@@ -170,36 +173,37 @@ public class RegistryServer {
 				String url = rs.getString("repourl");
 				String description = rs.getString("description");
 
-				if (name == null)  { // We did not find the pkg
-					Map obj = new HashMap();
-					obj.put("status", "err"); 
+
+				if (name == null) { // We did not find the pkg
+					obj.put("status", "pkg-err");
 					response.sendResponse(map2Json(obj));
 					return;
 				}
 
-				Map obj = new HashMap();
+				// Package is found. Prepare the json response
 				obj.put("pkgname", name);
 				obj.put("pkgauthor", author);
 				obj.put("pkgurl", url);
-				obj.put("pkgdesc", description); 
-				obj.put("status", "ok"); 
+				obj.put("pkgdesc", description);
+				obj.put("status", "ok");
 
 				response.sendResponse(map2Json(obj));
 
 			} catch (SQLException ex) {
 				BlazingLog.severe(ex.getMessage());
+				obj.put("status", "db-err");
+				response.sendResponse(map2Json(obj));
 			}
 		} else {
-				Map obj = new HashMap();
-				obj.put("status", "err"); 
-				response.sendResponse(map2Json(obj));
+			obj.put("status", "sys-err");
+			response.sendResponse(map2Json(obj));
 		}
 	}
 
 	private static String map2Json(Map<String, String> map) {
 		var entries = map.entrySet();
 
-		StringBuilder sb = new StringBuilder(); 
+		StringBuilder sb = new StringBuilder();
 		sb.append("{".indent(0));
 		for (var it = entries.iterator(); it.hasNext();) {
 			var entry = it.next();
@@ -210,6 +214,6 @@ public class RegistryServer {
 
 		}
 		sb.append("}");
-		return sb.toString(); 
+		return sb.toString();
 	}
 }
