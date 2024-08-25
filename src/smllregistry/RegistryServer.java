@@ -24,12 +24,14 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Iterator;
+import webx.H1;
 
 @WebServer("8080")
 @Static("/styles")
 @Static("/images")
 public class RegistryServer {
-
+	private RegistryServer() {}
+	
 	private static Connection conn;
 
 	@Initializer
@@ -68,17 +70,18 @@ public class RegistryServer {
 		try {
 			String sql = String.format(
 				"""
-    SELECT * FROM Packages 
-  	where 
-  		package_name like '%%%s%%' 
-  		or description like '%%%s%%'
-  		or repourl like '%%%s%%';
-    """.trim(),
+SELECT * FROM Packages 
+where 
+package_name like '%%%s%%' 
+or description like '%%%s%%'
+or repourl like '%%%s%%';
+""".trim(),
 				term,
 				term,
 				term
 			);
 			Statement stmt = conn.createStatement();
+
 			rs = stmt.executeQuery(sql);
 		} catch (SQLException ex) {
 			BlazingLog.severe(ex.getMessage());
@@ -92,28 +95,38 @@ public class RegistryServer {
 
 		if (rs != null) {
 			try {
-				var result_page = new Div()
+				var resultPage = new Div()
 					.addChildren(new ResultsHeader(term))
 					.className("flex flex-col p-5 w-full");
 
+				int count = 0;
 				while (rs.next()) {
 					String name = rs.getString("package_name");
 					String author = rs.getString("author");
 					String authorurl = rs.getString("authorgiturl");
 					String url = rs.getString("repourl");
 					String description = rs.getString("description");
-					result_page.addChild(new PackageGroup(name, author, authorurl, url, description));
+					resultPage.addChild(new PackageGroup(name, author, authorurl, url, description));
+					count++;
 				}
 
-				response.sendUiRespose(result_page);
-				return;
+				if (count == 0) {
+					resultPage
+						.addChild(
+						new Div()
+							.className("p-5 my-10 w-full justify-center text-center border")
+							.addChild(
+								new H1("404 results not found")
+							)
+					);
+					response.sendUiRespose(resultPage);
+				} else {
+					response.sendUiRespose(resultPage);
+				}
 			} catch (SQLException ex) {
 				BlazingLog.severe(ex.getMessage());
 			}
 		}
-
-		System.out.println("" + conn);
-		response.sendResponse("Showing results for: " + term);
 	}
 
 	@Post("/v1/reload")
@@ -131,9 +144,14 @@ public class RegistryServer {
 		Map<String, String> params = response.params();
 		String term = params.get("term");
 
+		HashMap<String, String> obj = new HashMap<>();
+		obj.put("pkgname", null);
+		obj.put("pkgauthor", null);
+		obj.put("pkgurl", null);
+		obj.put("pkgdesc", null);
+		String status = "status";
 		if (term == null) { // We did not find the pkg
-			Map obj = new HashMap();
-			obj.put("status", "err");
+			obj.put(status, "err");
 			response.sendResponse(map2Json(obj));
 			return;
 		}
@@ -142,10 +160,10 @@ public class RegistryServer {
 		try {
 			String sql = String.format(
 				"""
-    SELECT * FROM Packages 
-  	where 
-  		lower(package_name) = lower('%s');
-    """.trim(),
+SELECT * FROM Packages 
+where 
+lower(package_name) = lower('%s');
+""".trim(),
 				term
 			);
 			Statement stmt = conn.createStatement();
@@ -160,12 +178,6 @@ public class RegistryServer {
 			return;
 		}
 
-		Map obj = new HashMap();
-		obj.put("pkgname", null);
-		obj.put("pkgauthor", null);
-		obj.put("pkgurl", null);
-		obj.put("pkgdesc", null);
-
 		if (rs != null) {
 			try {
 				String name = rs.getString("package_name");
@@ -173,9 +185,8 @@ public class RegistryServer {
 				String url = rs.getString("repourl");
 				String description = rs.getString("description");
 
-
 				if (name == null) { // We did not find the pkg
-					obj.put("status", "pkg-err");
+					obj.put(status, "pkg-err");
 					response.sendResponse(map2Json(obj));
 					return;
 				}
@@ -185,17 +196,17 @@ public class RegistryServer {
 				obj.put("pkgauthor", author);
 				obj.put("pkgurl", url);
 				obj.put("pkgdesc", description);
-				obj.put("status", "ok");
+				obj.put(status, "ok");
 
 				response.sendResponse(map2Json(obj));
 
 			} catch (SQLException ex) {
 				BlazingLog.severe(ex.getMessage());
-				obj.put("status", "db-err");
+				obj.put(status, "db-err");
 				response.sendResponse(map2Json(obj));
 			}
 		} else {
-			obj.put("status", "sys-err");
+			obj.put(status, "sys-err");
 			response.sendResponse(map2Json(obj));
 		}
 	}
