@@ -2,12 +2,14 @@ package smllregistry;
 
 import blazing.BlazingLog;
 import blazing.BlazingResponse;
+import blazing.Destructor;
 import blazing.Get;
 import blazing.Initializer;
 import blazing.Post;
 import blazing.Route;
 import blazing.Static;
 import blazing.WebServer;
+import blazing.json.JSon;
 import components.HomeView;
 import components.PackageGroup;
 import components.ResultsHeader;
@@ -24,6 +26,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import webx.H1;
 
 @WebServer("8080")
@@ -152,7 +156,7 @@ or repourl like '%%%s%%';
 		String status = "status";
 		if (term == null) { // We did not find the pkg
 			obj.put(status, "err");
-			response.sendResponse(map2Json(obj));
+			response.sendResponse(JSon.from(obj));
 			return;
 		}
 
@@ -185,9 +189,10 @@ lower(package_name) = lower('%s');
 				String url = rs.getString("repourl");
 				String description = rs.getString("description");
 
+				String json = JSon.from(obj);
 				if (name == null) { // We did not find the pkg
 					obj.put(status, "pkg-err");
-					response.sendResponse(map2Json(obj));
+					response.sendResponse(json);
 					return;
 				}
 
@@ -198,33 +203,27 @@ lower(package_name) = lower('%s');
 				obj.put("pkgdesc", description);
 				obj.put(status, "ok");
 
-				response.sendResponse(map2Json(obj));
+				json = JSon.from(obj);
+				response.sendResponse(json);
 
 			} catch (SQLException ex) {
 				BlazingLog.severe(ex.getMessage());
 				obj.put(status, "db-err");
-				response.sendResponse(map2Json(obj));
+				response.sendResponse(JSon.from(obj));
 			}
 		} else {
 			obj.put(status, "sys-err");
-			response.sendResponse(map2Json(obj));
+			response.sendResponse(JSon.from(obj));
 		}
 	}
 
-	private static String map2Json(Map<String, String> map) {
-		var entries = map.entrySet();
-
-		StringBuilder sb = new StringBuilder();
-		sb.append("{".indent(0));
-		for (var it = entries.iterator(); it.hasNext();) {
-			var entry = it.next();
-			sb.append(
-				String.format("\"%s\":\"%s\"", entry.getKey(), entry.getValue())
-					.concat(it.hasNext() ? "," : "").indent(2)
-			);
-
+	@Destructor
+	public static void close() {
+		try {
+			conn.close();
+			BlazingLog.info("DB Connection dropped");
+		} catch (SQLException ex) {
+			BlazingLog.severe(ex.getMessage());
 		}
-		sb.append("}");
-		return sb.toString();
 	}
 }
